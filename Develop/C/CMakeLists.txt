@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10.2)
 
-INCLUDE_DIRECTORIES(../../../HLS_arbitrary_Precision_Types/include/)
+INCLUDE_DIRECTORIES(./ap_int/HLS_arbitrary_Precision_Types-master/include/)
 
 project(SkyNet)
 
