@@ -124,7 +124,7 @@ SkyNet.write(0x28, weight.physical_address)
 SkyNet.write(0x34, biasm.physical_address)
 
 rails = pynq.get_rails()
-recorder = pynq.DataRecorder(rails["power1"].power)
+#recorder = pynq.DataRecorder(rails["power1"].power)
 
 ################################## Main process ##################################
 bbox_origin = np.empty(64, dtype=np.int16)
@@ -139,50 +139,50 @@ load_image_to_ddr()
 
 print("\n**** Start to detect")
 start = time.time()
-with recorder.record(0.05):
-    for idx, batch in enumerate(IMAGE_NAMES):
-        '''
-        Change behavior according to idx (f = IMAGENAMES - 1):
-        idx = 0: preprocess -> skynet-> compute bbox
-        idx > 0: skynet-> preprocess -> compute bbox
-        idx = f: skynet-> NAN  -> compute bbox
-        Basically, these are sequential steps. We can using the interrupt to overlap preprocess
-        and compute bbox operations.
-        '''
-        if (idx == 0):
-            np.copyto(img, stitch(IMAGE_BUFF[idx], image))
-        else:
-            np.copyto(img, image_buff)
-            
-        acc_start = time.time()
+#with recorder.record(0.05):
+for idx, batch in enumerate(IMAGE_NAMES):
+    '''
+    Change behavior according to idx (f = IMAGENAMES - 1):
+    idx = 0: preprocess -> skynet-> compute bbox
+    idx > 0: skynet-> preprocess -> compute bbox
+    idx = f: skynet-> NAN  -> compute bbox
+    Basically, these are sequential steps. We can using the interrupt to overlap preprocess
+    and compute bbox operations.
+    '''
+    if (idx == 0):
+        np.copyto(img, stitch(IMAGE_BUFF[idx], image))
+    else:
+        np.copyto(img, image_buff)
         
-        SkyNet.write(0x00, 1)
-        if (0 <= idx < IMAGE_NAMES_LEN - 1):
-        # pass
-            image_buff = stitch(IMAGE_BUFF[idx+1], image)
-        if (0 < idx <= IMAGE_NAMES_LEN - 1):
-            compute_bounding_box(bbox ,bbox_origin.reshape(4,16), batch_buff, result)
+    acc_start = time.time()
+    
+    SkyNet.write(0x00, 1)
+    if (0 <= idx < IMAGE_NAMES_LEN - 1):
+    # pass
+        image_buff = stitch(IMAGE_BUFF[idx+1], image)
+    if (0 < idx <= IMAGE_NAMES_LEN - 1):
+        compute_bounding_box(bbox ,bbox_origin.reshape(4,16), batch_buff, result)
 
+    isready = SkyNet.read(0x00)
+    while( isready == 1 ):
         isready = SkyNet.read(0x00)
-        while( isready == 1 ):
-            isready = SkyNet.read(0x00)
 
-        np.copyto(bbox_origin, biasm[428*16:])
-        batch_buff = batch
+    np.copyto(bbox_origin, biasm[428*16:])
+    batch_buff = batch
 
-        if (idx == IMAGE_NAMES_LEN - 1):
-            compute_bounding_box(bbox ,bbox_origin.reshape(4,16), batch, result)
+    if (idx == IMAGE_NAMES_LEN - 1):
+        compute_bounding_box(bbox ,bbox_origin.reshape(4,16), batch, result)
 
-        acc_end = time.time()
-        total_time = acc_end - acc_start
+    acc_end = time.time()
+    total_time = acc_end - acc_start
 
 result.close()
 
 end = time.time()
 total_time = end - start
 print("**** Detection finished\n")
-energy = recorder.frame["power1_power"].mean() * total_time
-print(str(energy)+'J')
+#energy = recorder.frame["power1_power"].mean() * total_time
+#print(str(energy)+'J')
 
 IoU = Average_IoU(IMG_DIR+'ground_truth.txt', 'predict.txt')
 print('Total time: ' + str(total_time) + ' s')
